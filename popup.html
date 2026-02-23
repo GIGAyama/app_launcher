@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- ヘッダー部分 -->
+  <div class="header">
+    <h1><ruby>学<rt>まな</rt></ruby>びのトビラ</h1>
+  </div>
+
+  <!-- エラーや成功を知らせる通知（トースト） -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- アプリ一覧画面 -->
+  <div id="launcher-view">
+    <div id="app-grid" class="app-grid">
+      <!-- ここにJavaScriptでボタンが自動的に並びます -->
+    </div>
+    <div class="actions">
+      <button id="show-add-form-btn" class="btn primary-btn">
+        <ruby>新<rt>あたら</rt></ruby>しいアプリを<ruby>追加<rt>ついか</rt></ruby>する
+      </button>
+    </div>
+  </div>
+
+  <!-- アプリ追加画面（最初は隠れています） -->
+  <div id="add-form-view" class="hidden">
+    <div class="card">
+      <h2>アプリの<ruby>追加<rt>ついか</rt></ruby></h2>
+      
+      <div class="form-group">
+        <label><ruby>名前<rt>なまえ</rt></ruby></label>
+        <input type="text" id="app-name" placeholder="例：ヤフーキッズ">
+      </div>
+      
+      <div class="form-group">
+        <label><ruby>開<rt>ひら</rt></ruby>くページのURL</label>
+        <input type="url" id="app-url" placeholder="https://...">
+      </div>
+      
+      <div class="form-group">
+        <label>アイコンのURL (<ruby>省略可<rt>しょうりゃくか</rt></ruby>)</label>
+        <input type="url" id="app-icon" placeholder="https://... (画像のアドレス)">
+      </div>
+      
+      <div class="form-actions">
+        <button id="cancel-btn" class="btn secondary-btn"><ruby>戻<rt>もど</rt></ruby>る</button>
+        <button id="save-btn" class="btn primary-btn">
+          <span id="save-text"><ruby>保存<rt>ほぞん</rt></ruby>する</span>
+          <span id="save-spinner" class="spinner hidden"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 固定フッター (指定されたHTML完全一致、アプリ名のみ置換) -->
+  <footer style="text-align: center; color: #6c757d; padding: 10px 0; margin-top: 15px; border-top: 1px solid #dee2e6; font-size: 0.8em;">
+    <small>© 2026 <ruby>学<rt>まな</rt></ruby>びのトビラ <a href="https://note.com/cute_borage86" target="_blank" style="text-decoration: none; color: #6c757d;">GIGA山</a></small>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
