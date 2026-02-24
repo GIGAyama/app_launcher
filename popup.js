@@ -78,16 +78,21 @@ const saveData = async () => {
   renderGrid();
 };
 
-// ★ Googleドライブの画像URLを、直接表示できる形式に変換する魔法の関数 ★
+// ★ Googleドライブの画像URLを、直接表示できる新しい形式に変換する魔法の関数 ★
 const formatIconUrl = (url) => {
   if (!url) return '';
-  // 「drive.google.com/file/d/XXXXXX/view」などの形式を見つけて変換
-  let driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
   
-  // 「drive.google.com/open?id=XXXXXX」の形式
+  // 1. 「drive.google.com/file/d/XXXXXX/view」などの形式を見つけて変換
+  let driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  
+  // 2. 「drive.google.com/open?id=XXXXXX」の形式
   driveMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
-  if (driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+  if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+
+  // 3. 古い「drive.google.com/uc?id=XXXXXX」などの形式（先生が使っていたもの）
+  driveMatch = url.match(/drive\.google\.com\/uc\?.*id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
 
   return url; // ドライブのURLじゃなければそのまま返す
 };
