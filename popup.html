@@ -28,10 +28,13 @@
     </div>
   </div>
 
-  <!-- サブ：アプリ追加画面 -->
+  <!-- サブ：アプリ追加・編集画面 -->
   <div id="add-form-view" class="hidden view-container">
     <div class="card">
-      <h2>アプリの追加</h2>
+      <h2 id="form-title">アプリの追加</h2>
+      <!-- 編集時にどのアプリを直しているか記憶するための隠し項目 -->
+      <input type="hidden" id="edit-app-id" value="">
+      
       <div class="form-group">
         <label>名前</label>
         <input type="text" id="app-name" placeholder="例：ヤフーキッズ">
@@ -43,6 +46,7 @@
       <div class="form-group">
         <label>アイコンのURL (省略可)</label>
         <input type="url" id="app-icon" placeholder="画像のアドレス">
+        <p style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">※Googleドライブの共有リンクもそのまま使えます</p>
       </div>
       <div class="form-actions">
         <button id="cancel-add-btn" class="btn text-btn">戻る</button>
