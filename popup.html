@@ -5,60 +5,90 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <!-- ヘッダー部分（ふりがなを削除し、GIGA portalに変更） -->
+  <!-- ヘッダー部分 -->
   <div class="header">
     <h1>GIGA portal</h1>
+    <button id="settings-btn" class="icon-btn" title="設定" aria-label="設定">
+      <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor"><path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q134 0 227 93t93 227q0 134-93 227t-227 93Zm0-80q100 0 170-70t70-170q0-100-70-170t-170-70q-100 0-170 70t-70 170q0 100 70 170t170 70Zm0-120q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T520-480q0-17-11.5-28.5T480-520q-17 0-28.5 11.5T440-480q0 17 11.5 28.5T480-440Zm0 40Z"/></svg>
+    </button>
   </div>
 
-  <!-- エラーや成功を知らせる通知（トースト） -->
+  <!-- トースト通知 -->
   <div id="toast" class="toast hidden"></div>
 
-  <!-- アプリ一覧画面 -->
+  <!-- メイン：アプリ一覧画面 -->
   <div id="launcher-view">
     <div id="app-grid" class="app-grid">
-      <!-- ここにJavaScriptでボタンが自動的に並びます -->
+      <!-- JavaScriptで自動生成 -->
     </div>
     <div class="actions">
-      <!-- Google風の丸いボタン -->
       <button id="show-add-form-btn" class="btn secondary-btn">
-        ＋ <ruby>新<rt>あたら</rt></ruby>しいアプリを<ruby>追加<rt>ついか</rt></ruby>
+        ＋ 新しいアプリを追加
       </button>
     </div>
   </div>
 
-  <!-- アプリ追加画面（最初は隠れています） -->
-  <div id="add-form-view" class="hidden">
+  <!-- サブ：アプリ追加画面 -->
+  <div id="add-form-view" class="hidden view-container">
     <div class="card">
-      <h2>アプリの<ruby>追加<rt>ついか</rt></ruby></h2>
-      
+      <h2>アプリの追加</h2>
       <div class="form-group">
-        <label><ruby>名前<rt>なまえ</rt></ruby></label>
+        <label>名前</label>
         <input type="text" id="app-name" placeholder="例：ヤフーキッズ">
       </div>
-      
       <div class="form-group">
-        <label><ruby>開<rt>ひら</rt></ruby>くページのURL</label>
+        <label>開くページのURL</label>
         <input type="url" id="app-url" placeholder="https://...">
       </div>
-      
       <div class="form-group">
-        <label>アイコンのURL (<ruby>省略可<rt>しょうりゃくか</rt></ruby>)</label>
-        <input type="url" id="app-icon" placeholder="https://... (画像のアドレス)">
+        <label>アイコンのURL (省略可)</label>
+        <input type="url" id="app-icon" placeholder="画像のアドレス">
       </div>
-      
       <div class="form-actions">
-        <button id="cancel-btn" class="btn text-btn"><ruby>戻<rt>もど</rt></ruby>る</button>
-        <button id="save-btn" class="btn primary-btn">
-          <span id="save-text"><ruby>保存<rt>ほぞん</rt></ruby>する</span>
+        <button id="cancel-add-btn" class="btn text-btn">戻る</button>
+        <button id="save-app-btn" class="btn primary-btn">
+          <span id="save-text">保存する</span>
           <span id="save-spinner" class="spinner hidden"></span>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- 固定フッター (GIGA portalに変更) -->
-  <footer style="text-align: center; color: #6c757d; padding: 10px 0; margin-top: 15px; border-top: 1px solid #dee2e6; font-size: 0.8em;">
-    <small>© 2026 GIGA portal <a href="https://note.com/cute_borage86" target="_blank" style="text-decoration: none; color: #6c757d;">GIGA山</a></small>
+  <!-- サブ：設定画面（エクスポート・インポート） -->
+  <div id="settings-view" class="hidden view-container">
+    <div class="card">
+      <h2>設定</h2>
+      <div class="settings-group">
+        <p class="settings-desc">現在のアプリの並び順や追加したアプリの情報をファイルに保存したり、読み込んだりできます。</p>
+        
+        <button id="export-btn" class="btn secondary-btn" style="margin-bottom: 12px;">
+          <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" style="margin-right: 8px;"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+          設定をファイルに書き出す (Export)
+        </button>
+        
+        <!-- インポート用の隠しファイル入力 -->
+        <input type="file" id="import-file" accept=".json" style="display: none;">
+        <button id="import-btn" class="btn secondary-btn" style="margin-bottom: 24px;">
+          <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" style="margin-right: 8px;"><path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+          設定をファイルから読み込む (Import)
+        </button>
+
+        <hr style="border: none; border-top: 1px solid var(--border-color); margin-bottom: 24px;">
+
+        <button id="reset-btn" class="btn danger-btn text-btn" style="width: 100%; color: var(--error-color);">
+          初期状態（デフォルト9個）に戻す
+        </button>
+      </div>
+
+      <div class="form-actions" style="margin-top: 24px;">
+        <button id="close-settings-btn" class="btn primary-btn" style="width: 100%;">完了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 固定フッター -->
+  <footer>
+    <small>© 2026 GIGA portal <a href="https://note.com/cute_borage86" target="_blank" style="text-decoration: none; color: inherit;">GIGA山</a></small>
   </footer>
 
   <script src="popup.js"></script>
