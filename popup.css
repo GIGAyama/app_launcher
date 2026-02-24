@@ -20,7 +20,7 @@
   --toast-bg: #323232;
   --toast-text: #ffffff;
   --drag-over-bg: #e8f0fe;
-  --icon-filter: none; /* アイコンの色調補正用 */
+  --icon-filter: none;
 }
 
 /* ====== ダークモード完全対応 (OS設定に自動追従) ====== */
@@ -33,7 +33,7 @@
     --text-secondary: #9aa0a6;
     --text-tertiary: #9aa0a6;
     --border-color: #5f6368;
-    --primary-color: #8ab4f8; /* ダークモード用の明るい青 */
+    --primary-color: #8ab4f8;
     --primary-color-hover: #aecbfa;
     --error-color: #f28b82;
     --success-color: #81c995;
@@ -41,12 +41,11 @@
     --card-shadow: 0 1px 3px rgba(0,0,0,0.5);
     --toast-bg: #e8eaed;
     --toast-text: #202124;
-    --drag-over-bg: #3c4043; /* 濃いグレーでハイライト */
-    --icon-filter: brightness(0.9); /* 白背景アイコンの眩しさを軽減 */
+    --drag-over-bg: #3c4043;
+    --icon-filter: brightness(0.9);
   }
 }
 
-/* 全体の基本設定 */
 body {
   font-family: 'Zen Maru Gothic', 'Google Sans', sans-serif;
   width: 340px;
@@ -59,7 +58,6 @@ body {
 
 html { background-color: var(--bg-color); }
 
-/* ヘッダー */
 .header {
   display: flex;
   justify-content: space-between;
@@ -74,101 +72,72 @@ html { background-color: var(--bg-color); }
   color: var(--text-primary);
   flex-grow: 1;
   text-align: center;
-  padding-left: 28px; /* 設定アイコンとのバランス調整 */
+  padding-left: 28px;
 }
 
-/* アイコンボタン（設定など） */
 .icon-btn {
-  background: none;
-  border: none;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background-color 0.2s;
-  padding: 0;
+  background: none; border: none; border-radius: 50%; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); cursor: pointer; transition: background-color 0.2s; padding: 0;
 }
 .icon-btn:hover { background-color: var(--bg-color-hover); color: var(--text-primary); }
 
-/* アプリ一覧グリッド */
-.app-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 12px;
-}
+.app-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 12px; }
 
-/* 個別のアプリアイコン */
 .app-item {
-  background-color: transparent;
-  border-radius: 8px;
-  padding: 12px 8px;
-  text-align: center;
-  cursor: pointer;
-  position: relative;
-  transition: background-color 0.15s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  user-select: none; /* テキスト選択を防ぐ（ドラッグしやすくする） */
+  background-color: transparent; border-radius: 8px; padding: 12px 8px;
+  text-align: center; cursor: pointer; position: relative;
+  transition: background-color 0.15s ease; display: flex; flex-direction: column;
+  align-items: center; user-select: none;
 }
 .app-item:hover { background-color: var(--bg-color-hover); }
 
 .app-icon {
-  width: 44px;
-  height: 44px;
-  margin-bottom: 8px;
-  object-fit: contain;
-  filter: var(--icon-filter);
-  border-radius: 8px; /* 角丸アイコンに対応 */
+  width: 44px; height: 44px; margin-bottom: 8px; object-fit: contain;
+  filter: var(--icon-filter); border-radius: 8px;
 }
 
 .app-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  word-break: break-all;
-  line-height: 1.2;
+  font-size: 13px; font-weight: 500; color: var(--text-primary);
+  word-break: break-all; line-height: 1.2;
 }
 
-/* 削除ボタン */
-.delete-btn {
+/* ★編集・削除ボタンのコンテナ★ */
+.item-actions {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  background-color: var(--bg-color-hover);
+  top: 2px;
+  right: 2px;
+  display: none;
+  gap: 4px;
+  z-index: 10;
+}
+.app-item:hover .item-actions { display: flex; }
+
+.action-btn {
+  background-color: var(--bg-color);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  padding: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
-.app-item:hover .delete-btn { display: flex; }
-.delete-btn:hover { background-color: var(--error-color); color: #fff; border-color: var(--error-color); }
+.action-btn:hover { background-color: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+.action-btn.delete-btn:hover { background-color: var(--error-color); border-color: var(--error-color); }
 
-/* ドラッグ＆ドロップ状態 */
 .app-item.dragging { opacity: 0.4; transform: scale(0.95); }
-.app-item.drag-over {
-  background-color: var(--drag-over-bg);
-  border: 2px dashed var(--primary-color);
-  border-radius: 8px;
-}
+.app-item.drag-over { background-color: var(--drag-over-bg); border: 2px dashed var(--primary-color); border-radius: 8px; }
 
-/* アクションエリア */
 .actions { padding: 8px 16px 16px; text-align: center; }
 
-/* ボタン共通（カプセル型） */
 .btn {
   font-family: inherit; font-weight: 500; border: none; border-radius: 24px;
   padding: 8px 24px; cursor: pointer; font-size: 14px;
@@ -186,12 +155,10 @@ html { background-color: var(--bg-color); }
 .text-btn { background-color: transparent; color: var(--primary-color); padding: 8px 16px; }
 .text-btn:hover:not(:disabled) { background-color: var(--bg-color-hover); }
 
-/* サブ画面コンテナ */
 .view-container { padding: 0 16px 16px; }
 .card { background-color: var(--card-bg); padding: 16px 20px; border-radius: 8px; box-shadow: var(--card-shadow); }
 .card h2 { margin-top: 0; font-size: 16px; color: var(--text-primary); text-align: center; font-weight: 500; margin-bottom: 20px; }
 
-/* 入力フォーム */
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 12px; margin-bottom: 4px; font-weight: 500; color: var(--text-secondary); }
 .form-group input {
@@ -202,13 +169,11 @@ html { background-color: var(--bg-color); }
 }
 .form-group input:focus { border-color: var(--primary-color); border-width: 2px; padding: 9px 11px; }
 
-/* 設定画面テキスト */
 .settings-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
 
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .hidden { display: none !important; }
 
-/* トースト通知 */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   background-color: var(--toast-bg); color: var(--toast-text);
@@ -219,9 +184,7 @@ html { background-color: var(--bg-color); }
 .toast.error { background-color: var(--error-color); color: #fff; }
 .toast.success { background-color: var(--success-color); color: #fff; }
 
-/* フッター */
 footer { text-align: center; color: var(--text-tertiary); padding: 12px 0; margin-top: 8px; border-top: 1px solid var(--border-color); font-size: 11px; }
 
-/* スピナー */
 .spinner { border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 2px solid #fff; width: 14px; height: 14px; animation: spin 1s linear infinite; margin-left: 8px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
