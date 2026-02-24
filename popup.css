@@ -1,43 +1,108 @@
-/* Google Fontsの読み込み（Zen Maru Gothic） */
+/* Google Fonts (Zen Maru Gothic & Google Sans 互換) */
 @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap');
 
-/* 全体の基本設定（Google純正ランチャー風） */
+/* ====== カラーパレット（CSS変数） ====== */
+:root {
+  /* ライトモード (デフォルト) */
+  --bg-color: #ffffff;
+  --bg-color-hover: #f1f3f4;
+  --bg-color-active: #e8eaed;
+  --text-primary: #202124;
+  --text-secondary: #5f6368;
+  --text-tertiary: #6c757d;
+  --border-color: #dadce0;
+  --primary-color: #1a73e8;
+  --primary-color-hover: #1b66c9;
+  --error-color: #d93025;
+  --success-color: #188038;
+  --card-bg: #ffffff;
+  --card-shadow: 0 1px 3px rgba(60,64,67,0.3);
+  --toast-bg: #323232;
+  --toast-text: #ffffff;
+  --drag-over-bg: #e8f0fe;
+  --icon-filter: none; /* アイコンの色調補正用 */
+}
+
+/* ====== ダークモード完全対応 (OS設定に自動追従) ====== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #202124;
+    --bg-color-hover: #303134;
+    --bg-color-active: #3c4043;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-tertiary: #9aa0a6;
+    --border-color: #5f6368;
+    --primary-color: #8ab4f8; /* ダークモード用の明るい青 */
+    --primary-color-hover: #aecbfa;
+    --error-color: #f28b82;
+    --success-color: #81c995;
+    --card-bg: #292a2d;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    --toast-bg: #e8eaed;
+    --toast-text: #202124;
+    --drag-over-bg: #3c4043; /* 濃いグレーでハイライト */
+    --icon-filter: brightness(0.9); /* 白背景アイコンの眩しさを軽減 */
+  }
+}
+
+/* 全体の基本設定 */
 body {
   font-family: 'Zen Maru Gothic', 'Google Sans', sans-serif;
   width: 340px;
   margin: 0;
   padding: 0;
-  background-color: #ffffff; /* 白背景でシームレスに */
-  color: #202124; /* Googleの標準テキストカラー */
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
 }
 
-/* iframeで表示された時のための調整 */
-html {
-  background-color: #ffffff;
-}
+html { background-color: var(--bg-color); }
 
-/* ヘッダー（シンプルで洗練されたデザイン） */
+/* ヘッダー */
 .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 16px 16px 8px;
-  text-align: center;
 }
 
 .header h1 {
   margin: 0;
   font-size: 20px;
   font-weight: 500;
-  color: #202124;
+  color: var(--text-primary);
+  flex-grow: 1;
+  text-align: center;
+  padding-left: 28px; /* 設定アイコンとのバランス調整 */
 }
 
-/* アプリ一覧のグリッドレイアウト */
+/* アイコンボタン（設定など） */
+.icon-btn {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  padding: 0;
+}
+.icon-btn:hover { background-color: var(--bg-color-hover); color: var(--text-primary); }
+
+/* アプリ一覧グリッド */
 .app-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px; /* アイコン同士の隙間を調整 */
+  gap: 4px;
   padding: 12px;
 }
 
-/* 個別のアプリアイコン（影をなくし、フラットに） */
+/* 個別のアプリアイコン */
 .app-item {
   background-color: transparent;
   border-radius: 8px;
@@ -49,239 +114,114 @@ html {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-decoration: none;
+  user-select: none; /* テキスト選択を防ぐ（ドラッグしやすくする） */
 }
-
-/* Google特有のホバーエフェクト（薄いグレー） */
-.app-item:hover {
-  background-color: #f1f3f4;
-}
+.app-item:hover { background-color: var(--bg-color-hover); }
 
 .app-icon {
   width: 44px;
   height: 44px;
   margin-bottom: 8px;
   object-fit: contain;
+  filter: var(--icon-filter);
+  border-radius: 8px; /* 角丸アイコンに対応 */
 }
 
 .app-name {
   font-size: 13px;
   font-weight: 500;
-  color: #3c4043; /* 少し柔らかいグレー */
+  color: var(--text-primary);
   word-break: break-all;
   line-height: 1.2;
 }
 
-/* ドラッグ＆ドロップ操作用のスタイル */
-.app-item.dragging {
-  opacity: 0.4;
-  transform: scale(0.95);
-}
-
-.app-item.drag-over {
-  background-color: #e8f0fe; /* ドラッグ先をGoogleブルーの薄い色でハイライト */
-  border: 2px dashed #1a73e8;
-  border-radius: 8px;
-}
-
-/* 削除ボタン（マウスを乗せた時だけ控えめに表示） */
+/* 削除ボタン */
 .delete-btn {
   position: absolute;
   top: 4px;
   right: 4px;
-  background-color: transparent;
-  color: #5f6368;
-  border: none;
+  background-color: var(--bg-color-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  font-size: 16px;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  display: none; /* 普段は隠す */
+  display: none;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
+  transition: all 0.2s;
+}
+.app-item:hover .delete-btn { display: flex; }
+.delete-btn:hover { background-color: var(--error-color); color: #fff; border-color: var(--error-color); }
+
+/* ドラッグ＆ドロップ状態 */
+.app-item.dragging { opacity: 0.4; transform: scale(0.95); }
+.app-item.drag-over {
+  background-color: var(--drag-over-bg);
+  border: 2px dashed var(--primary-color);
+  border-radius: 8px;
 }
 
-/* アイコン全体にマウスを乗せたら削除ボタンを表示 */
-.app-item:hover .delete-btn {
-  display: flex;
-}
+/* アクションエリア */
+.actions { padding: 8px 16px 16px; text-align: center; }
 
-.delete-btn:hover {
-  background-color: #e8eaed;
-  color: #202124;
-}
-
-/* 共通アクションエリア */
-.actions {
-  padding: 8px 16px 16px;
-  text-align: center;
-}
-
-/* ボタン共通設定（カプセル型） */
+/* ボタン共通（カプセル型） */
 .btn {
-  font-family: inherit;
-  font-weight: 500;
-  border: none;
-  border-radius: 24px; /* Google UI特有の丸み */
-  padding: 8px 24px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s, box-shadow 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: 0.25px;
+  font-family: inherit; font-weight: 500; border: none; border-radius: 24px;
+  padding: 8px 24px; cursor: pointer; font-size: 14px;
+  transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
+  letter-spacing: 0.25px; box-sizing: border-box;
 }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn:disabled {
-  background-color: #e8eaed;
-  color: #9aa0a6;
-  cursor: not-allowed;
-  box-shadow: none;
-}
+.primary-btn { background-color: var(--primary-color); color: var(--bg-color); }
+.primary-btn:hover:not(:disabled) { background-color: var(--primary-color-hover); box-shadow: var(--card-shadow); }
 
-/* プライマリボタン（青） */
-.primary-btn {
-  background-color: #1a73e8;
-  color: #ffffff;
-}
+.secondary-btn { background-color: transparent; color: var(--primary-color); border: 1px solid var(--border-color); width: 100%; }
+.secondary-btn:hover:not(:disabled) { background-color: var(--bg-color-hover); border-color: var(--primary-color); }
 
-.primary-btn:hover:not(:disabled) {
-  background-color: #1b66c9;
-  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
-}
+.text-btn { background-color: transparent; color: var(--primary-color); padding: 8px 16px; }
+.text-btn:hover:not(:disabled) { background-color: var(--bg-color-hover); }
 
-/* セカンダリボタン（枠線のみ） */
-.secondary-btn {
-  background-color: transparent;
-  color: #1a73e8;
-  border: 1px solid #dadce0;
-  width: 100%;
-}
+/* サブ画面コンテナ */
+.view-container { padding: 0 16px 16px; }
+.card { background-color: var(--card-bg); padding: 16px 20px; border-radius: 8px; box-shadow: var(--card-shadow); }
+.card h2 { margin-top: 0; font-size: 16px; color: var(--text-primary); text-align: center; font-weight: 500; margin-bottom: 20px; }
 
-.secondary-btn:hover {
-  background-color: #f8f9fa;
-}
-
-/* テキストボタン（枠線なし） */
-.text-btn {
-  background-color: transparent;
-  color: #1a73e8;
-  padding: 8px 16px;
-}
-
-.text-btn:hover {
-  background-color: #f8f9fa;
-}
-
-/* カード（追加フォーム用） */
-.card {
-  background-color: #ffffff;
-  padding: 16px 24px;
-}
-
-.card h2 {
-  margin-top: 0;
-  font-size: 16px;
-  color: #202124;
-  text-align: center;
-  font-weight: 500;
-  margin-bottom: 20px;
-}
-
-/* 入力フォーム設定（Google アウトラインスタイル） */
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 12px;
-  margin-bottom: 4px;
-  font-weight: 500;
-  color: #5f6368;
-}
-
+/* 入力フォーム */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; margin-bottom: 4px; font-weight: 500; color: var(--text-secondary); }
 .form-group input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 14px;
-  color: #202124;
-  outline: none;
-  transition: border-color 0.2s;
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1px solid var(--border-color); border-radius: 4px;
+  font-family: inherit; font-size: 14px; color: var(--text-primary);
+  background-color: var(--bg-color); outline: none; transition: border-color 0.2s;
 }
+.form-group input:focus { border-color: var(--primary-color); border-width: 2px; padding: 9px 11px; }
 
-/* フォーカス時に青枠にする */
-.form-group input:focus {
-  border-color: #1a73e8;
-  border-width: 2px;
-  padding: 9px 11px; /* borderが太くなった分のズレを調整 */
-}
+/* 設定画面テキスト */
+.settings-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end; /* ボタンを右寄せ */
-  gap: 8px;
-  margin-top: 24px;
-}
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.hidden { display: none !important; }
 
-/* 隠すクラス */
-.hidden {
-  display: none !important;
-}
-
-/* ローディング用スピナー */
-.spinner {
-  border: 3px solid rgba(255,255,255,0.3);
-  border-radius: 50%;
-  border-top: 3px solid white;
-  width: 16px;
-  height: 16px;
-  animation: spin 1s linear infinite;
-  margin-left: 8px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* トースト通知（Google風に画面下部に配置） */
+/* トースト通知 */
 .toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #323232; /* ダークグレー */
-  color: white;
-  padding: 12px 24px;
-  border-radius: 4px;
-  font-size: 14px;
-  z-index: 1000;
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background-color: var(--toast-bg); color: var(--toast-text);
+  padding: 12px 24px; border-radius: 4px; font-size: 14px; z-index: 1000;
   box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14), 0 1px 18px 0 rgba(0,0,0,.12);
-  transition: opacity 0.3s;
+  transition: opacity 0.3s; white-space: nowrap; pointer-events: none;
 }
+.toast.error { background-color: var(--error-color); color: #fff; }
+.toast.success { background-color: var(--success-color); color: #fff; }
 
-.toast.error {
-  background-color: #d93025; /* Google Red */
-}
+/* フッター */
+footer { text-align: center; color: var(--text-tertiary); padding: 12px 0; margin-top: 8px; border-top: 1px solid var(--border-color); font-size: 11px; }
 
-.toast.success {
-  background-color: #188038; /* Google Green */
-}
-
-/* ルビの調整 */
-ruby {
-  ruby-align: center;
-}
-rt {
-  font-size: 0.6em;
-  color: #5f6368;
-}
+/* スピナー */
+.spinner { border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 2px solid #fff; width: 14px; height: 14px; animation: spin 1s linear infinite; margin-left: 8px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
