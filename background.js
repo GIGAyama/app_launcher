@@ -24,7 +24,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     try {
       // クラウド同期データ(sync)から取得。なければlocalから取得を試みる
-      let result = await chrome.storage.sync.get(['apps']);
+      const result = await chrome.storage.sync.get(['apps']);
       let currentApps = result.apps;
       
       if (!currentApps || currentApps.length === 0) {

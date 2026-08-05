@@ -1,0 +1,32 @@
+{
+  "$comment": "GIGA Standard v5 品質ゲートの設定。しきい値はここだけで変える。",
+  "type": "D",
+  "typeLabel": "Chrome拡張 (Manifest V3)",
+  "maxImageBytes": 153600,
+  "maxFileLines": 5000,
+  "maxFileBytes": 409600,
+  "shippedGlobs": [
+    "manifest.json",
+    "popup.html",
+    "popup.css",
+    "popup.js",
+    "background.js",
+    "content.js",
+    "lib/**",
+    "icons/**"
+  ],
+  "$ignoreComment": "検査の道具そのものは対象から外す。check-project.mjs には「わざと壊した見本」として postMessage(…,'*') や localStorage.clear() の文字列が含まれており、対象に入れると自分自身を違反として数えてしまう。.github は外さない（dependabot.yml の有無を見るため）。",
+  "ignore": [
+    "node_modules/**",
+    "tools/**",
+    "tests/**",
+    "scripts/**"
+  ],
+  "notApplicable": {
+    "PWA": "拡張機能そのものがインストール対象なので、manifest.webmanifest / sw.js / offline.html は持たない",
+    "CANVAS_DPR": "Canvas を使っていない",
+    "PRINT_CSS": "印刷する画面が無い",
+    "PRESENTATION_MODE": "一斉授業で提示する画面ではない（ランチャー）",
+    "STUDY_LOG": "学習の記録を取るアプリではない"
+  }
+}

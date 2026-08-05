@@ -7,6 +7,12 @@
 // addEventListener を使うこと（文字列の HTML に書いた属性は動かない）。
 // ============================================================================
 
+import {
+  safeUrl, safeIconUrl, formatIconUrl, fallbackIconFor,
+  sanitizeImported, embedderOriginFromHash
+} from './lib/url-safety.js';
+import { findExistingTab } from './lib/tab-match.js';
+
 const defaultApps = [
   { id: 'default_classroom', name: 'クラスルーム', url: 'https://classroom.google.com/', icon: 'https://ssl.gstatic.com/classroom/ic_product_classroom_144.png', isCustom: false },
   { id: 'default_drive', name: 'ドライブ', url: 'https://drive.google.com/', icon: 'https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png', isCustom: false },
@@ -67,50 +73,6 @@ const switchView = (targetViewName) => {
   UI.views[targetViewName].classList.remove('hidden');
 };
 
-// --- URL の安全確認 ---------------------------------------------------------
-// 開く先は http/https だけに限る。
-// 設定ファイルは先生どうしで配られるものなので、中身は「他人が書いたもの」
-// として扱う。javascript: が混ざったまま window.open に渡すと、
-// 拡張機能の権限で任意のコードが動いてしまう。
-const SAFE_PROTOCOLS = ['http:', 'https:'];
-const safeUrl = (raw) => {
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-  try {
-    const u = new URL(raw.trim());
-    return SAFE_PROTOCOLS.includes(u.protocol) ? u.href : null;
-  } catch { return null; }
-};
-
-// アイコンは表示するだけなので data: も許す（自前の代替画像がこの形）
-const safeIconUrl = (raw) => {
-  if (typeof raw !== 'string' || !raw.trim()) return '';
-  const v = raw.trim();
-  if (v.startsWith('icons/') || v.startsWith('data:image/')) return v;
-  return safeUrl(v) || '';
-};
-
-// --- 自前の代替アイコン -----------------------------------------------------
-// 既定の9個のアイコンは ssl.gstatic.com から取っている。
-// 学校のフィルタリングで塞がれると9枚とも「壊れた画像」になり、
-// 児童からはアプリ自体が壊れたようにしか見えない。
-// URL から宛先を見分けて、拡張機能に同梱した SVG を代わりに出す。
-// （すでに同期済みの設定にも効くよう、保存データではなく URL から判定する）
-const FALLBACKS = [
-  [/^https?:\/\/classroom\.google\.com/, 'icons/fb-classroom.svg'],
-  [/^https?:\/\/drive\.google\.com/, 'icons/fb-drive.svg'],
-  [/^https?:\/\/docs\.google\.com\/presentation/, 'icons/fb-slides.svg'],
-  [/^https?:\/\/docs\.google\.com\/spreadsheets/, 'icons/fb-sheets.svg'],
-  [/^https?:\/\/docs\.google\.com\/forms/, 'icons/fb-forms.svg'],
-  [/^https?:\/\/docs\.google\.com/, 'icons/fb-docs.svg'],
-  [/^https?:\/\/meet\.google\.com/, 'icons/fb-meet.svg'],
-  [/^https?:\/\/calendar\.google\.com/, 'icons/fb-calendar.svg'],
-  [/^https?:\/\/translate\.google\.com/, 'icons/fb-translate.svg']
-];
-const fallbackIconFor = (url) => {
-  for (const [re, file] of FALLBACKS) if (re.test(url || '')) return file;
-  return 'icons/fb-generic.svg';
-};
-
 const loadData = async () => {
   try {
     const syncData = await chrome.storage.sync.get(['apps']);
@@ -153,56 +115,14 @@ const saveData = async () => {
   return r;
 };
 
-// Googleドライブの画像URLを、直接表示できる形式に変換する
-const formatIconUrl = (url) => {
-  if (!url) return '';
-
-  // 1. 「drive.google.com/file/d/XXXXXX/view」などの形式を見つけて変換
-  let driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
-
-  // 2. 「drive.google.com/open?id=XXXXXX」の形式
-  driveMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
-  if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
-
-  // 3. 古い「drive.google.com/uc?id=XXXXXX」などの形式（先生が使っていたもの）
-  driveMatch = url.match(/drive\.google\.com\/uc\?.*id=([a-zA-Z0-9_-]+)/);
-  if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
-
-  return url; // ドライブのURLじゃなければそのまま返す
-};
-
-// 「すでに開いているタブ」を探す。
-// 単純な前方一致だと https://docs.google.com/ が
-// スライドやスプレッドシートのタブにも当たってしまい、
-// 「ドキュメント」を押したのにスライドへ飛ぶ、という迷子が起きる。
-// より長い宛先を持つアプリが同じタブに当たる場合は、そちらに譲る。
-const findExistingTab = (tabs, app) => {
-  const base = (app.url || '').split('?')[0];
-  if (!base) return null;
-  const rivals = currentApps
-    .map(a => (a.url || '').split('?')[0])
-    .filter(b => b.length > base.length && b.startsWith(base));
-  return tabs.find(t =>
-    t.url && t.url.startsWith(base) && !rivals.some(r => t.url.startsWith(r))
-  ) || null;
-};
-
 // 埋め込み元（content.js の iframe）へ「閉じて」と伝える。
 // 宛先に '*' を使うと、どこに埋め込まれても中身が渡ってしまう。
 // 親のオリジンは content.js が iframe の URL の #embed= に入れて渡してくる。
 // referrer から取る手もあるが、参照元ポリシー次第で空になることがあり
 // 「閉じない」という形で黙って壊れるため、明示的に渡す形にした。
-const GOOGLE_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*google\.(com|co\.jp)$/;
-const embedderOrigin = () => {
-  const m = location.hash.match(/[#&]embed=([^&]+)/);
-  if (!m) return null;
-  const origin = decodeURIComponent(m[1]);
-  return GOOGLE_ORIGIN.test(origin) ? origin : null;
-};
 const notifyParentToClose = () => {
   if (window === window.parent) return;
-  const origin = embedderOrigin();
+  const origin = embedderOriginFromHash(location.hash);
   if (!origin) return;
   window.parent.postMessage({ type: 'CLOSE_GIGA_LAUNCHER' }, origin);
 };
@@ -212,7 +132,7 @@ const openApp = async (app) => {
   if (!target) return showToast('このアプリのURLが正しくありません', 'error');
   try {
     const tabs = await chrome.tabs.query({});
-    const existingTab = findExistingTab(tabs, app);
+    const existingTab = findExistingTab(tabs, app, currentApps);
     if (existingTab) {
       await chrome.tabs.update(existingTab.id, { active: true });
       await chrome.windows.update(existingTab.windowId, { focused: true });
@@ -436,28 +356,6 @@ UI.buttons.export.addEventListener('click', () => {
 });
 UI.buttons.import.addEventListener('click', () => UI.importFile.click());
 
-// 読み込む設定ファイルは、先生から先生へ配られる「他人が書いたもの」。
-// 中身をそのまま信じず、必要な項目だけを取り出して形を整える。
-const sanitizeImported = (raw) => {
-  if (!Array.isArray(raw)) return null;
-  const out = [];
-  raw.forEach((entry, i) => {
-    if (!entry || typeof entry !== 'object') return;
-    const url = safeUrl(entry.url);
-    if (!url) return;                       // http/https 以外は捨てる
-    const name = typeof entry.name === 'string' && entry.name.trim()
-      ? entry.name.trim().slice(0, 60) : url;
-    out.push({
-      id: typeof entry.id === 'string' && entry.id ? entry.id : `custom_${Date.now()}_${i}`,
-      name,
-      url,
-      icon: safeIconUrl(entry.icon),
-      isCustom: entry.isCustom !== false
-    });
-  });
-  return out.length ? out : null;
-};
-
 UI.importFile.addEventListener('change', (e) => {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
@@ -497,4 +395,12 @@ document.addEventListener('keydown', (e) => {
   else if (!UI.views.settings.classList.contains('hidden')) switchView('launcher');
 });
 
-document.addEventListener('DOMContentLoaded', loadData);
+// ⚠️ このファイルは module として読み込まれる（＝defer 相当）。
+//    リスナーを付けたときには DOMContentLoaded が済んでいることがあり、
+//    その場合リスナーは二度と呼ばれず、画面が空のままになる。
+//    「済んでいるならその場で走らせる」分岐を必ず入れる。
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadData, { once: true });
+} else {
+  loadData();
+}

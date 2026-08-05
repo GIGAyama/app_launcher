@@ -124,7 +124,44 @@ try {
     + `最初の描画の時点で ${fellBack.already ? 'すでに同梱の絵へ切り替わっていた' : '外部の絵が取れていた'}`
     + ' — 学校のフィルタリング下と同じ状態）');
 
-  // 6. インライン script が本当に止まること（CSP が効いている証拠）
+  // 6. content.js と同じ形で iframe に埋め込んだときに動くか。
+  //    web_accessible_resources を popup.html だけに絞ったので、
+  //    popup.css / popup.js / lib/*.js が読めなくなっていないかを見る。
+  //    （絞りすぎると Google のページの上でだけ真っ白になる。
+  //      ツールバーから開く分には気づけない。）
+  //    ⚠️ 埋め込み元のオリジンが *.google.com でないと、
+  //    web_accessible_resources の matches に弾かれて当然入れない。
+  //    about:blank に貼って「入れなかった」と判定すると、
+  //    設定が正しいのに壊れていると読み違える。
+  //    実物の google.com へは出られないので、その URL の応答だけを差し替える。
+  const host = await ctx.newPage();
+  await host.route('https://www.google.com/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: '<!doctype html><title>host</title><body><p>ページ本体</p>',
+  }));
+  await host.goto('https://www.google.com/');
+  await host.evaluate((id) => new Promise((res) => {
+    const f = document.createElement('iframe');
+    f.id = 'giga-launcher-iframe';
+    f.src = `chrome-extension://${id}/popup.html#embed=` + encodeURIComponent('https://www.google.com');
+    f.style.cssText = 'width:360px;height:500px';
+    f.addEventListener('load', () => setTimeout(res, 1200), { once: true });
+    document.body.appendChild(f);
+  }), extId);
+  const inFrame = host.frames().find((f) => f.url().includes('popup.html'));
+  const framed = inFrame ? await inFrame.evaluate(() => ({
+    tiles: document.querySelectorAll('.app-tile').length,
+    // CSS が当たっているか（当たっていなければ幅の指定が効かない）
+    styled: getComputedStyle(document.body).backgroundColor !== 'rgba(0, 0, 0, 0)',
+    grid: getComputedStyle(document.querySelector('.app-grid')).display,
+  })) : null;
+  ok('Google のページに埋め込んでも中身が出る', !!framed && framed.tiles === 9,
+    framed ? `${framed.tiles}個` : 'iframe の中に入れなかった');
+  ok('埋め込み時に CSS が当たっている', !!framed && framed.styled && framed.grid === 'grid',
+    framed ? `display:${framed.grid}` : '-');
+
+  // 7. インライン script が本当に止まること（CSP が効いている証拠）
   const inlineBlocked = await page.evaluate(() => {
     window.__inlineRan = false;
     const s = document.createElement('script');
