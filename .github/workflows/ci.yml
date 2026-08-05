@@ -1,0 +1,41 @@
+name: CI
+
+# pull_request でも動かす。push: [main] だけだと、PR の時点で落ちていることに
+# 気づけず、マージしてから初めて赤くなる。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # 実ブラウザで測るため Chromium が要る（§7）
+      - run: npx playwright install --with-deps chromium
+
+      # lint → テスト → 品質ゲート
+      - run: npm run check
+
+      # 表示の実測。学校のフィルタリングを再現した状態で
+      # コントラスト・タップ領域・CSP違反・JSエラーが 0件であること。
+      - run: npm run measure
+
+      # 検査自身が動いていることの確認。
+      # わざと読めない色を差し込み、捕まらなければ失敗させる。
+      - name: 品質ゲートが本当に見ているかを確かめる
+        run: |
+          if npm run measure:selftest --silent; then
+            echo "::error::わざと壊した色を検出できていない。measure.mjs が機能していない。"
+            exit 1
+          fi
+          echo "OK: わざと壊した色を検出できた"
