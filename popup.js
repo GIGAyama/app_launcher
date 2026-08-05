@@ -1,5 +1,10 @@
 // ============================================================================
-// GIGA portal - Core Logic (Edit Feature & Google Drive Image Support)
+// GIGA portal - Core Logic
+// ============================================================================
+// 【この画面は MV3 の拡張機能ページである】
+// 既定で script-src 'self' が効いているため、インラインの onclick= /
+// onerror= は一切実行されない。DOM を組み立てるときは必ず
+// addEventListener を使うこと（文字列の HTML に書いた属性は動かない）。
 // ============================================================================
 
 const defaultApps = [
@@ -44,17 +49,66 @@ const UI = {
 
 let currentApps = [];
 let draggedItemIndex = null;
+let toastTimer = null;
 
 const showToast = (message, type = 'success') => {
   UI.toast.textContent = message;
   UI.toast.className = `toast ${type}`;
+  // エラーは割り込んで読み上げる。成功は操作の邪魔をしない読み上げにする。
+  UI.toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
   UI.toast.classList.remove('hidden');
-  setTimeout(() => UI.toast.classList.add('hidden'), 3000);
+  // 続けて出したときに前の消去予定が生き残ると、2つめが早く消える
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => UI.toast.classList.add('hidden'), 3000);
 };
 
 const switchView = (targetViewName) => {
   Object.values(UI.views).forEach(view => view.classList.add('hidden'));
   UI.views[targetViewName].classList.remove('hidden');
+};
+
+// --- URL の安全確認 ---------------------------------------------------------
+// 開く先は http/https だけに限る。
+// 設定ファイルは先生どうしで配られるものなので、中身は「他人が書いたもの」
+// として扱う。javascript: が混ざったまま window.open に渡すと、
+// 拡張機能の権限で任意のコードが動いてしまう。
+const SAFE_PROTOCOLS = ['http:', 'https:'];
+const safeUrl = (raw) => {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const u = new URL(raw.trim());
+    return SAFE_PROTOCOLS.includes(u.protocol) ? u.href : null;
+  } catch { return null; }
+};
+
+// アイコンは表示するだけなので data: も許す（自前の代替画像がこの形）
+const safeIconUrl = (raw) => {
+  if (typeof raw !== 'string' || !raw.trim()) return '';
+  const v = raw.trim();
+  if (v.startsWith('icons/') || v.startsWith('data:image/')) return v;
+  return safeUrl(v) || '';
+};
+
+// --- 自前の代替アイコン -----------------------------------------------------
+// 既定の9個のアイコンは ssl.gstatic.com から取っている。
+// 学校のフィルタリングで塞がれると9枚とも「壊れた画像」になり、
+// 児童からはアプリ自体が壊れたようにしか見えない。
+// URL から宛先を見分けて、拡張機能に同梱した SVG を代わりに出す。
+// （すでに同期済みの設定にも効くよう、保存データではなく URL から判定する）
+const FALLBACKS = [
+  [/^https?:\/\/classroom\.google\.com/, 'icons/fb-classroom.svg'],
+  [/^https?:\/\/drive\.google\.com/, 'icons/fb-drive.svg'],
+  [/^https?:\/\/docs\.google\.com\/presentation/, 'icons/fb-slides.svg'],
+  [/^https?:\/\/docs\.google\.com\/spreadsheets/, 'icons/fb-sheets.svg'],
+  [/^https?:\/\/docs\.google\.com\/forms/, 'icons/fb-forms.svg'],
+  [/^https?:\/\/docs\.google\.com/, 'icons/fb-docs.svg'],
+  [/^https?:\/\/meet\.google\.com/, 'icons/fb-meet.svg'],
+  [/^https?:\/\/calendar\.google\.com/, 'icons/fb-calendar.svg'],
+  [/^https?:\/\/translate\.google\.com/, 'icons/fb-translate.svg']
+];
+const fallbackIconFor = (url) => {
+  for (const [re, file] of FALLBACKS) if (re.test(url || '')) return file;
+  return 'icons/fb-generic.svg';
 };
 
 const loadData = async () => {
@@ -65,7 +119,7 @@ const loadData = async () => {
     } else {
       const localData = await chrome.storage.local.get(['apps']);
       currentApps = localData.apps && localData.apps.length > 0 ? localData.apps : [...defaultApps];
-      await chrome.storage.sync.set({ apps: currentApps });
+      await persist();
     }
     renderGrid();
   } catch (error) {
@@ -73,19 +127,40 @@ const loadData = async () => {
   }
 };
 
-const saveData = async () => {
-  await chrome.storage.sync.set({ apps: currentApps });
-  renderGrid();
+// 保存の実体。sync は 1項目 8KB・全体 100KB の上限がある。
+// アプリを増やしていくと必ずいつか超えるので、超えたときに黙って消えないよう
+// この端末（local）へ退避し、そのことを利用者に伝える。
+const persist = async () => {
+  try {
+    await chrome.storage.sync.set({ apps: currentApps });
+    await chrome.storage.local.set({ apps: currentApps });
+    return { ok: true };
+  } catch (error) {
+    try {
+      await chrome.storage.local.set({ apps: currentApps });
+      return { ok: true, localOnly: true };
+    } catch {
+      return { ok: false };
+    }
+  }
 };
 
-// ★ Googleドライブの画像URLを、直接表示できる新しい形式に変換する魔法の関数 ★
+const saveData = async () => {
+  const r = await persist();
+  renderGrid();
+  if (!r.ok) showToast('保存できませんでした', 'error');
+  else if (r.localOnly) showToast('この端末にだけ保存しました（同期の空きが足りません）', 'error');
+  return r;
+};
+
+// Googleドライブの画像URLを、直接表示できる形式に変換する
 const formatIconUrl = (url) => {
   if (!url) return '';
-  
+
   // 1. 「drive.google.com/file/d/XXXXXX/view」などの形式を見つけて変換
   let driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
-  
+
   // 2. 「drive.google.com/open?id=XXXXXX」の形式
   driveMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
   if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
@@ -97,107 +172,185 @@ const formatIconUrl = (url) => {
   return url; // ドライブのURLじゃなければそのまま返す
 };
 
-const renderGrid = () => {
-  UI.grid.innerHTML = '';
-  const fragment = document.createDocumentFragment();
+// 「すでに開いているタブ」を探す。
+// 単純な前方一致だと https://docs.google.com/ が
+// スライドやスプレッドシートのタブにも当たってしまい、
+// 「ドキュメント」を押したのにスライドへ飛ぶ、という迷子が起きる。
+// より長い宛先を持つアプリが同じタブに当たる場合は、そちらに譲る。
+const findExistingTab = (tabs, app) => {
+  const base = (app.url || '').split('?')[0];
+  if (!base) return null;
+  const rivals = currentApps
+    .map(a => (a.url || '').split('?')[0])
+    .filter(b => b.length > base.length && b.startsWith(base));
+  return tabs.find(t =>
+    t.url && t.url.startsWith(base) && !rivals.some(r => t.url.startsWith(r))
+  ) || null;
+};
 
-  currentApps.forEach((app, index) => {
-    const item = document.createElement('a');
-    item.className = 'app-item';
-    item.draggable = true;
-    item.dataset.index = index;
-    item.href = app.url;
-    item.target = "_blank";
-    item.rel = "noopener noreferrer";
-    
-    // アイコンURLの処理（ドライブ対応＆自動取得フォールバック）
-    let iconSrc = formatIconUrl(app.icon);
-    if (!iconSrc) {
-        try { iconSrc = `https://www.google.com/s2/favicons?sz=64&domain_url=${new URL(app.url).origin}`; } 
-        catch(e) { iconSrc = ''; }
+// 埋め込み元（content.js の iframe）へ「閉じて」と伝える。
+// 宛先に '*' を使うと、どこに埋め込まれても中身が渡ってしまう。
+// 親のオリジンは content.js が iframe の URL の #embed= に入れて渡してくる。
+// referrer から取る手もあるが、参照元ポリシー次第で空になることがあり
+// 「閉じない」という形で黙って壊れるため、明示的に渡す形にした。
+const GOOGLE_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*google\.(com|co\.jp)$/;
+const embedderOrigin = () => {
+  const m = location.hash.match(/[#&]embed=([^&]+)/);
+  if (!m) return null;
+  const origin = decodeURIComponent(m[1]);
+  return GOOGLE_ORIGIN.test(origin) ? origin : null;
+};
+const notifyParentToClose = () => {
+  if (window === window.parent) return;
+  const origin = embedderOrigin();
+  if (!origin) return;
+  window.parent.postMessage({ type: 'CLOSE_GIGA_LAUNCHER' }, origin);
+};
+
+const openApp = async (app) => {
+  const target = safeUrl(app.url);
+  if (!target) return showToast('このアプリのURLが正しくありません', 'error');
+  try {
+    const tabs = await chrome.tabs.query({});
+    const existingTab = findExistingTab(tabs, app);
+    if (existingTab) {
+      await chrome.tabs.update(existingTab.id, { active: true });
+      await chrome.windows.update(existingTab.windowId, { focused: true });
+    } else {
+      await chrome.tabs.create({ url: target });
     }
-    const fallbackSvg = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath fill='%239aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z'/%3E%3C/svg%3E";
+    notifyParentToClose();
+  } catch (err) {
+    // 権限が無い等でタブ操作に失敗したときの最後の手段。
+    // ここに渡るのは safeUrl を通した http/https だけ。
+    window.open(target, '_blank', 'noopener');
+  }
+};
 
-    // アプリとボタンの描画
-    item.innerHTML = `
-      <img src="${iconSrc}" class="app-icon" alt="" draggable="false" onerror="this.onerror=null; this.src='${fallbackSvg}';">
-      <div class="app-name">${app.name}</div>
-      <div class="item-actions">
-        <button class="action-btn edit-btn" data-id="${app.id}" title="編集" aria-label="編集">
-          <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 -960 960 960" width="14" fill="currentColor"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-528q12-12 28-12t28 12l57 57q12 12 12 28t-12 28L257-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
-        </button>
-        <button class="action-btn delete-btn" data-id="${app.id}" title="削除" aria-label="削除">×</button>
-      </div>
-    `;
+// --- 1枚のタイルを組み立てる ------------------------------------------------
+// 文字列の HTML を innerHTML に入れない。
+// アプリ名はページのタイトルや、先生が配った設定ファイルから来る。
+// つまり「自分で書いた文字」ではないので、タグとして解釈させてはならない。
+const buildTile = (app, index) => {
+  const tile = document.createElement('div');
+  tile.className = 'app-tile';
+  tile.draggable = true;
+  tile.dataset.index = String(index);
 
-    // 1. スマート切り替え
-    item.addEventListener('click', async (e) => {
-      e.preventDefault();
-      // ボタンが押された時はジャンプしない
-      if (e.target.closest('.action-btn')) return;
+  // 開くところ。button を a の中に入れると HTML として不正になり、
+  // キーボードの順序も壊れるので、操作ボタンは兄弟として置く。
+  const link = document.createElement('a');
+  link.className = 'app-item';   // 100×92px あるので当たり判定の追加は要らない
+  link.href = safeUrl(app.url) || '#';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
 
-      try {
-        const tabs = await chrome.tabs.query({});
-        const existingTab = tabs.find(t => t.url && t.url.startsWith(app.url.split('?')[0]));
-        if (existingTab) {
-          await chrome.tabs.update(existingTab.id, { active: true });
-          await chrome.windows.update(existingTab.windowId, { focused: true });
-        } else {
-          await chrome.tabs.create({ url: app.url });
-        }
-        if (window !== window.parent) window.parent.postMessage({ type: 'CLOSE_GIGA_LAUNCHER' }, '*');
-      } catch (err) { window.open(app.url, '_blank'); }
-    });
+  const img = document.createElement('img');
+  img.className = 'app-icon';
+  img.alt = '';               // 名前がすぐ下にあるので、読み上げは重複させない
+  img.width = 44;
+  img.height = 44;            // 読み込み前後で高さが変わらないようにする（CLS）
+  img.draggable = false;
+  img.decoding = 'async';
+  const fallback = fallbackIconFor(app.url);
+  // ⚠️ onerror= 属性は CSP に阻まれて実行されない。必ず addEventListener で付ける。
+  img.addEventListener('error', () => {
+    if (img.dataset.fellBack) return;   // 代替画像まで失敗したときに無限に回らないように
+    img.dataset.fellBack = '1';
+    img.src = fallback;
+  }, { once: false });
+  const wanted = safeIconUrl(formatIconUrl(app.icon));
+  img.src = wanted || fallback;
 
-    // 2. 編集・削除
-    item.querySelector('.edit-btn').addEventListener('click', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      openEditForm(app); // 編集フォームを開く
-    });
-    
-    item.querySelector('.delete-btn').addEventListener('click', async (e) => {
-      e.preventDefault(); e.stopPropagation();
-      if (confirm(`「${app.name}」を削除しますか？`)) {
-        currentApps = currentApps.filter(cApp => cApp.id !== app.id);
-        await saveData();
-        showToast('削除しました');
-      }
-    });
+  const name = document.createElement('div');
+  name.className = 'app-name';
+  name.textContent = app.name;        // ← タグとして解釈させない
 
-    // 3. ドラッグ＆ドロップ
-    item.addEventListener('dragstart', (e) => {
-      draggedItemIndex = parseInt(item.dataset.index);
-      e.dataTransfer.effectAllowed = 'move';
-      setTimeout(() => item.classList.add('dragging'), 0);
-    });
-    item.addEventListener('dragover', (e) => e.preventDefault());
-    item.addEventListener('dragenter', () => {
-      if (parseInt(item.dataset.index) !== draggedItemIndex) item.classList.add('drag-over');
-    });
-    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
-    item.addEventListener('drop', (e) => {
-      e.stopPropagation(); item.classList.remove('drag-over');
-      const targetIndex = parseInt(item.dataset.index);
-      if (draggedItemIndex !== null && draggedItemIndex !== targetIndex) {
-        const movedApp = currentApps.splice(draggedItemIndex, 1)[0];
-        currentApps.splice(targetIndex, 0, movedApp);
-        saveData();
-      }
-      return false;
-    });
-    item.addEventListener('dragend', () => {
-      item.classList.remove('dragging');
-      UI.grid.querySelectorAll('.app-item').forEach(el => el.classList.remove('drag-over'));
-      draggedItemIndex = null;
-    });
+  link.append(img, name);
 
-    fragment.appendChild(item);
+  const actions = document.createElement('div');
+  actions.className = 'item-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'action-btn edit-btn tap-44';
+  editBtn.type = 'button';
+  editBtn.title = '編集';
+  editBtn.setAttribute('aria-label', `${app.name} を編集`);
+  editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 -960 960 960" width="14" fill="currentColor" aria-hidden="true" focusable="false"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-528q12-12 28-12t28 12l57 57q12 12 12 28t-12 28L257-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>';
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'action-btn delete-btn tap-44';
+  delBtn.type = 'button';
+  delBtn.title = '削除';
+  delBtn.setAttribute('aria-label', `${app.name} を削除`);
+  delBtn.textContent = '×';
+
+  actions.append(editBtn, delBtn);
+  tile.append(link, actions);
+
+  link.addEventListener('click', (e) => { e.preventDefault(); openApp(app); });
+  editBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openEditForm(app); });
+  delBtn.addEventListener('click', async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (confirm(`「${app.name}」を削除しますか？`)) {
+      currentApps = currentApps.filter(cApp => cApp.id !== app.id);
+      const r = await saveData();
+      if (r.ok) showToast('削除しました');
+    }
   });
-  
+
+  // ドラッグ＆ドロップ
+  tile.addEventListener('dragstart', () => {
+    draggedItemIndex = parseInt(tile.dataset.index, 10);
+    setTimeout(() => tile.classList.add('dragging'), 0);
+  });
+  tile.addEventListener('dragover', (e) => { e.preventDefault(); });
+  tile.addEventListener('dragenter', () => {
+    if (parseInt(tile.dataset.index, 10) !== draggedItemIndex) tile.classList.add('drag-over');
+  });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+  tile.addEventListener('drop', (e) => {
+    e.stopPropagation(); tile.classList.remove('drag-over');
+    const targetIndex = parseInt(tile.dataset.index, 10);
+    if (draggedItemIndex !== null && draggedItemIndex !== targetIndex) {
+      const movedApp = currentApps.splice(draggedItemIndex, 1)[0];
+      currentApps.splice(targetIndex, 0, movedApp);
+      saveData();
+    }
+    return false;
+  });
+  tile.addEventListener('dragend', () => {
+    tile.classList.remove('dragging');
+    UI.grid.querySelectorAll('.app-tile').forEach(el => el.classList.remove('drag-over'));
+    draggedItemIndex = null;
+  });
+
+  // ドラッグはマウスが要る。キーボードだけでも並べ替えられるようにする。
+  tile.addEventListener('keydown', (e) => {
+    if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    const from = parseInt(tile.dataset.index, 10);
+    const to = e.key === 'ArrowLeft' ? from - 1 : from + 1;
+    if (to < 0 || to >= currentApps.length) return;
+    currentApps.splice(to, 0, currentApps.splice(from, 1)[0]);
+    saveData().then(() => {
+      const moved = UI.grid.querySelectorAll('.app-tile')[to];
+      if (moved) moved.querySelector('.app-item').focus();
+      showToast(`${currentApps[to].name} を移動しました`);
+    });
+  });
+
+  return tile;
+};
+
+const renderGrid = () => {
+  UI.grid.textContent = '';
+  const fragment = document.createDocumentFragment();
+  currentApps.forEach((app, index) => fragment.appendChild(buildTile(app, index)));
   UI.grid.appendChild(fragment);
 };
 
-// --- ★編集フォームを開く関数 ---
+// --- 編集フォームを開く ---
 const openEditForm = (app) => {
   switchView('addForm');
   UI.inputs.title.textContent = 'アプリの編集';
@@ -214,7 +367,7 @@ UI.buttons.showAdd.addEventListener('click', async () => {
   UI.inputs.title.textContent = 'アプリの追加';
   UI.inputs.editId.value = ''; // 新規なのでIDを空に
   UI.inputs.name.value = ''; UI.inputs.url.value = ''; UI.inputs.icon.value = '';
-  
+
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab && tab.url && !tab.url.startsWith('chrome://')) {
@@ -222,7 +375,7 @@ UI.buttons.showAdd.addEventListener('click', async () => {
       UI.inputs.url.value = tab.url;
       if (tab.favIconUrl) UI.inputs.icon.value = tab.favIconUrl;
     }
-  } catch(e) {}
+  } catch (e) { /* 今のタブが取れないだけなので、空欄のまま進める */ }
   UI.inputs.name.focus();
 });
 
@@ -238,6 +391,9 @@ UI.buttons.saveApp.addEventListener('click', async () => {
 
   if (!nameVal || !urlVal) return showToast('名前とURLは必須です', 'error');
   if (!urlVal.startsWith('http')) urlVal = 'https://' + urlVal;
+  const checked = safeUrl(urlVal);
+  if (!checked) return showToast('URLの形が正しくありません', 'error');
+  urlVal = checked;
 
   UI.buttons.saveApp.disabled = true;
   document.getElementById('save-text').classList.add('hidden');
@@ -256,11 +412,12 @@ UI.buttons.saveApp.addEventListener('click', async () => {
       // 新規追加の場合
       currentApps.push({ id: 'custom_' + Date.now(), name: nameVal, url: urlVal, icon: iconVal, isCustom: true });
     }
-    
-    await saveData();
-    showToast(editId ? '更新しました' : '保存しました'); // メッセージも切り替え
-    switchView('launcher');
-  } catch (error) {
+
+    const r = await saveData();
+    if (r.ok) {
+      showToast(editId ? '更新しました' : '保存しました'); // メッセージも切り替え
+      switchView('launcher');
+    }
   } finally {
     UI.buttons.saveApp.disabled = false;
     document.getElementById('save-text').classList.remove('hidden');
@@ -268,7 +425,7 @@ UI.buttons.saveApp.addEventListener('click', async () => {
   }
 });
 
-// 設定画面の処理（エクスポート・インポートなど変更なし）
+// 設定画面の処理（エクスポート・インポート）
 UI.buttons.settings.addEventListener('click', () => switchView('settings'));
 UI.buttons.closeSettings.addEventListener('click', () => switchView('launcher'));
 UI.buttons.export.addEventListener('click', () => {
@@ -278,24 +435,66 @@ UI.buttons.export.addEventListener('click', () => {
   showToast('設定ファイルを保存しました');
 });
 UI.buttons.import.addEventListener('click', () => UI.importFile.click());
+
+// 読み込む設定ファイルは、先生から先生へ配られる「他人が書いたもの」。
+// 中身をそのまま信じず、必要な項目だけを取り出して形を整える。
+const sanitizeImported = (raw) => {
+  if (!Array.isArray(raw)) return null;
+  const out = [];
+  raw.forEach((entry, i) => {
+    if (!entry || typeof entry !== 'object') return;
+    const url = safeUrl(entry.url);
+    if (!url) return;                       // http/https 以外は捨てる
+    const name = typeof entry.name === 'string' && entry.name.trim()
+      ? entry.name.trim().slice(0, 60) : url;
+    out.push({
+      id: typeof entry.id === 'string' && entry.id ? entry.id : `custom_${Date.now()}_${i}`,
+      name,
+      url,
+      icon: safeIconUrl(entry.icon),
+      isCustom: entry.isCustom !== false
+    });
+  });
+  return out.length ? out : null;
+};
+
 UI.importFile.addEventListener('change', (e) => {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = async (event) => {
-    try {
-      const importedApps = JSON.parse(event.target.result);
-      if (Array.isArray(importedApps) && importedApps.length > 0 && importedApps[0].url) {
-        currentApps = importedApps; await saveData(); showToast('設定を読み込みました'); switchView('launcher');
-      } else throw new Error();
-    } catch (err) { showToast('正しい設定ファイルではありません', 'error'); }
+    let parsed = null;
+    try { parsed = JSON.parse(event.target.result); } catch { parsed = null; }
+    const cleaned = parsed ? sanitizeImported(parsed) : null;
+    if (!cleaned) {
+      showToast('正しい設定ファイルではありません', 'error');
+    } else {
+      const dropped = Array.isArray(parsed) ? parsed.length - cleaned.length : 0;
+      currentApps = cleaned;
+      const r = await saveData();
+      if (r.ok) {
+        showToast(dropped ? `設定を読み込みました（${dropped}件は開けないURLのため除きました）` : '設定を読み込みました');
+        switchView('launcher');
+      }
+    }
     UI.importFile.value = '';
   };
+  reader.onerror = () => { showToast('ファイルを読めませんでした', 'error'); UI.importFile.value = ''; };
   reader.readAsText(file);
 });
+
 UI.buttons.reset.addEventListener('click', async () => {
   if (confirm("全ての追加アプリと並び順を削除し、最初の9個の状態に戻します。よろしいですか？")) {
-    currentApps = [...defaultApps]; await saveData(); showToast('初期状態にリセットしました'); switchView('launcher');
+    currentApps = defaultApps.map(a => ({ ...a }));
+    const r = await saveData();
+    if (r.ok) { showToast('初期状態にリセットしました'); switchView('launcher'); }
   }
+});
+
+// Esc で1つ前の画面に戻す（マウスが使えない児童のため）
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!UI.views.addForm.classList.contains('hidden')) switchView('launcher');
+  else if (!UI.views.settings.classList.contains('hidden')) switchView('launcher');
 });
 
 document.addEventListener('DOMContentLoaded', loadData);

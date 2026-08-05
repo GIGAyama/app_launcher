@@ -255,10 +255,14 @@ const run = async () => {
       });
     }
     const page = await ctx.newPage();
-    const errors = [], csp = [];
+    const errors = [], csp = [], blocked = [];
     page.on('console', (m) => {
       const t = m.text();
       if (/Content Security Policy|Refused to/i.test(t)) csp.push(t);
+      // 外部資産が塞がれること自体は「学校での既定の状態」であって不具合ではない。
+      // 大事なのは、塞がれたあとに代わりの絵が出ているか（icons の数字を見る）。
+      // ここを JS エラーと一緒に数えると、狙って再現した状態で常に赤くなる。
+      else if (m.type() === 'error' && /net::ERR_|Failed to load resource/i.test(t)) blocked.push(t);
       else if (m.type() === 'error') errors.push(t);
     });
     page.on('pageerror', (e) => errors.push(String(e)));
@@ -330,7 +334,7 @@ const run = async () => {
       return { total: imgs.length, broken: imgs.filter(i => !i.complete || i.naturalWidth === 0).length };
     });
 
-    results[scheme] = { per, narrow, icons, errors, csp };
+    results[scheme] = { per, narrow, icons, errors, csp, blocked };
     await ctx.close();
   }
 
@@ -357,9 +361,12 @@ const run = async () => {
     console.log(`  アイコン: ${r.icons.broken}/${r.icons.total} 枚が表示できていない${OFFLINE ? '（フィルタリング再現時）' : ''}`);
     if (r.icons.broken) ng++;
     console.log(`  CSP違反: ${r.csp.length}件 / JSエラー: ${r.errors.length}件`);
+    console.log(`  外部資産の取得失敗: ${r.blocked.length}件${OFFLINE ? '（塞いで測っているので想定どおり）' : ' ← --online なのに落ちている'}`);
     for (const c of r.csp) console.log(`    ! ${c.slice(0, 160)}`);
     for (const e of r.errors) console.log(`    ! ${e.slice(0, 160)}`);
     ng += r.csp.length + r.errors.length;
+    // 外へ出られる状態で落ちているなら、それは本当の不具合
+    if (!OFFLINE) ng += r.blocked.length;
   }
   console.log(`\n合計 NG: ${ng}件`);
   process.exit(ng ? 1 : 0);

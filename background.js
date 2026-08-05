@@ -47,7 +47,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       // 追加成功のシステム通知を表示（Manifest V3対応）
       chrome.notifications.create({
         type: 'basic',
-        iconUrl: 'icon.png', // フォルダ内にicon.pngがある前提
+        iconUrl: 'icons/icon-128.png',
         title: 'GIGA portal',
         message: `「${nameVal}」を追加しました！`
       });
