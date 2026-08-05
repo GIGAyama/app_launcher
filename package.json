@@ -1,0 +1,25 @@
+{
+  "name": "giga-portal",
+  "version": "3.1.0",
+  "private": true,
+  "description": "GIGA portal — GIGAスクール向け Chrome 拡張ランチャー（開発用のツールだけを持つ package.json）",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build:icons": "node tools/build-icons.mjs",
+    "measure": "node tools/measure.mjs",
+    "measure:online": "node tools/measure.mjs --online",
+    "measure:selftest": "node tools/measure.mjs --selftest",
+    "test": "node --test tests/*.test.mjs",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test && npm run gate",
+    "verify": "node tools/verify-extension.mjs",
+    "gate": "node scripts/check-project.mjs",
+    "gate:selftest": "node scripts/check-project.mjs --selftest"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0",
+    "playwright": "1.56.1",
+    "sharp": "^0.35.3"
+  }
+}

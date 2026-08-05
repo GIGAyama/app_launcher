@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # 開発用ツール（sharp / playwright / eslint）だけの依存。
+  # 拡張機能の配布物には一切同梱されないが、放置すると脆弱性の通知が届かなくなる。
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    # メジャー更新は授業期間中に壊れると困るため、人間が判断する
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

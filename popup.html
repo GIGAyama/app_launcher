@@ -2,19 +2,27 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <!-- ツールバーの吹き出しでは効かないが、この画面は content.js が
+       Google のページへ iframe として埋め込むこともあるため必要。
+       user-scalable=no / maximum-scale は書かない（拡大できないと
+       見えづらい子が困る。誤ズームは touch-action で防ぐ）。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>GIGA portal</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <!-- ヘッダー部分 -->
   <div class="header">
     <h1>GIGA portal</h1>
-    <button id="settings-btn" class="icon-btn" title="設定" aria-label="設定">
-      <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor"><path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q134 0 227 93t93 227q0 134-93 227t-227 93Zm0-80q100 0 170-70t70-170q0-100-70-170t-170-70q-100 0-170 70t-70 170q0 100 70 170t170 70Zm0-120q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T520-480q0-17-11.5-28.5T480-520q-17 0-28.5 11.5T440-480q0 17 11.5 28.5T480-440Zm0 40Z"/></svg>
+    <button id="settings-btn" class="icon-btn tap-44" type="button" title="設定" aria-label="設定">
+      <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q134 0 227 93t93 227q0 134-93 227t-227 93Zm0-80q100 0 170-70t70-170q0-100-70-170t-170-70q-100 0-170 70t-70 170q0 100 70 170t170 70Zm0-120q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T520-480q0-17-11.5-28.5T480-520q-17 0-28.5 11.5T440-480q0 17 11.5 28.5T480-440Zm0 40Z"/></svg>
     </button>
   </div>
 
-  <!-- トースト通知 -->
-  <div id="toast" class="toast hidden"></div>
+  <!-- トースト通知。保存・削除の結果は目で見えるだけでなく読み上げも必要。
+       role は popup.js が種類に応じて status / alert に付け替える。 -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <!-- メイン：アプリ一覧画面 -->
   <div id="launcher-view">
@@ -22,7 +30,7 @@
       <!-- JavaScriptで自動生成 -->
     </div>
     <div class="actions">
-      <button id="show-add-form-btn" class="btn secondary-btn">
+      <button id="show-add-form-btn" class="btn secondary-btn" type="button">
         ＋ 新しいアプリを追加
       </button>
     </div>
@@ -34,23 +42,23 @@
       <h2 id="form-title">アプリの追加</h2>
       <!-- 編集時にどのアプリを直しているか記憶するための隠し項目 -->
       <input type="hidden" id="edit-app-id" value="">
-      
+
       <div class="form-group">
-        <label>名前</label>
+        <label for="app-name">名前</label>
         <input type="text" id="app-name" placeholder="例：ヤフーキッズ">
       </div>
       <div class="form-group">
-        <label>開くページのURL</label>
+        <label for="app-url">開くページのURL</label>
         <input type="url" id="app-url" placeholder="https://...">
       </div>
       <div class="form-group">
-        <label>アイコンのURL (省略可)</label>
+        <label for="app-icon">アイコンのURL (省略可)</label>
         <input type="url" id="app-icon" placeholder="画像のアドレス">
-        <p style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">※Googleドライブの共有リンクもそのまま使えます</p>
+        <p class="field-hint">※Googleドライブの共有リンクもそのまま使えます</p>
       </div>
       <div class="form-actions">
-        <button id="cancel-add-btn" class="btn text-btn">戻る</button>
-        <button id="save-app-btn" class="btn primary-btn">
+        <button id="cancel-add-btn" class="btn text-btn" type="button">戻る</button>
+        <button id="save-app-btn" class="btn primary-btn" type="button">
           <span id="save-text">保存する</span>
           <span id="save-spinner" class="spinner hidden"></span>
         </button>
@@ -64,37 +72,38 @@
       <h2>設定</h2>
       <div class="settings-group">
         <p class="settings-desc">現在のアプリの並び順や追加したアプリの情報をファイルに保存したり、読み込んだりできます。</p>
-        
-        <button id="export-btn" class="btn secondary-btn" style="margin-bottom: 12px;">
-          <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" style="margin-right: 8px;"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+
+        <button id="export-btn" class="btn secondary-btn stack-btn" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" class="btn-icon" aria-hidden="true" focusable="false"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
           設定をファイルに書き出す (Export)
         </button>
-        
+
         <!-- インポート用の隠しファイル入力 -->
-        <input type="file" id="import-file" accept=".json" style="display: none;">
-        <button id="import-btn" class="btn secondary-btn" style="margin-bottom: 24px;">
-          <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" style="margin-right: 8px;"><path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+        <input type="file" id="import-file" accept=".json" class="hidden">
+        <button id="import-btn" class="btn secondary-btn stack-btn stack-btn-last" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 -960 960 960" width="18" fill="currentColor" class="btn-icon" aria-hidden="true" focusable="false"><path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
           設定をファイルから読み込む (Import)
         </button>
 
-        <hr style="border: none; border-top: 1px solid var(--border-color); margin-bottom: 24px;">
+        <hr class="settings-divider">
 
-        <button id="reset-btn" class="btn danger-btn text-btn" style="width: 100%; color: var(--error-color);">
+        <button id="reset-btn" class="btn danger-btn text-btn block-btn" type="button">
           初期状態（デフォルト9個）に戻す
         </button>
       </div>
 
-      <div class="form-actions" style="margin-top: 24px;">
-        <button id="close-settings-btn" class="btn primary-btn" style="width: 100%;">完了</button>
+      <div class="form-actions form-actions-block">
+        <button id="close-settings-btn" class="btn primary-btn block-btn" type="button">完了</button>
       </div>
     </div>
   </div>
 
   <!-- 固定フッター -->
   <footer>
-    <small>© 2026 GIGA portal <a href="https://note.com/cute_borage86" target="_blank" style="text-decoration: none; color: inherit;">GIGA山</a></small>
+    <small>© 2026 GIGA portal <a href="https://note.com/cute_borage86" target="_blank"
+      rel="noopener noreferrer" class="footer-link tap-44">GIGA山</a></small>
   </footer>
 
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

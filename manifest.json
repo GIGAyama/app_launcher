@@ -1,19 +1,20 @@
 {
   "manifest_version": 3,
   "name": "GIGA portal",
-  "version": "3.0",
+  "version": "3.1",
   "description": "よく使う学習ツールにすぐアクセスできるランチャーです。",
+  "minimum_chrome_version": "108",
   "icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icon.png",
-      "48": "icon.png",
-      "128": "icon.png"
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
     }
   },
   "permissions": [
@@ -24,6 +25,9 @@
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src 'self'; base-uri 'none'; form-action 'none'"
   },
   "commands": {
     "_execute_action": {
@@ -42,7 +46,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["popup.html", "popup.css", "popup.js"],
+      "resources": ["popup.html"],
       "matches": ["*://*.google.com/*", "*://*.google.co.jp/*"]
     }
   ]

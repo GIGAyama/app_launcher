@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.DS_Store
+*.log
+# 配布用 zip（tools/pack.mjs の出力）
+giga-portal-*.zip
