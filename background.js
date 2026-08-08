@@ -2,6 +2,15 @@
 // GIGA portal - Background Service Worker
 // ============================================================================
 
+const notify = (message) => {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icons/icon-128.png',
+    title: 'GIGA portal',
+    message
+  });
+};
+
 // インストール時に右クリックメニューを作成
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -41,19 +50,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         isCustom: true
       });
 
-      // 保存
-      await chrome.storage.sync.set({ apps: currentApps });
+      // 保存。sync は 1項目 8KB・全体 100KB の上限がある。
+      // popup.js の persist() と同じ振る舞いにそろえる。
+      // ここだけ sync のみに書いていると、上限を超えたときに
+      // console にしか出ず、追加が黙って消える（通知も出ない）。
+      let localOnly = false;
+      try {
+        await chrome.storage.sync.set({ apps: currentApps });
+        await chrome.storage.local.set({ apps: currentApps });
+      } catch (e) {
+        await chrome.storage.local.set({ apps: currentApps });
+        localOnly = true;
+      }
 
       // 追加成功のシステム通知を表示（Manifest V3対応）
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon-128.png',
-        title: 'GIGA portal',
-        message: `「${nameVal}」を追加しました！`
-      });
+      notify(localOnly
+        ? `「${nameVal}」を追加しました（この端末にだけ保存しました。同期の空きが足りません）`
+        : `「${nameVal}」を追加しました！`);
 
     } catch (error) {
       console.error("GIGA portal: 保存に失敗しました", error);
+      // 黙って失敗しない。押したのに何も起きない、が一番困る。
+      notify(`「${nameVal}」を追加できませんでした`);
     }
   }
 });
