@@ -262,3 +262,7 @@ CI では毎回この確認を行っており、失敗すればビルドを落�
 このプロジェクトは [MIT License](LICENSE) のもとで公開されています。教育現場等での改変・再配布も自由に行っていただけます。
 
 *Developed with ❤️ for GIGA School Program*
+
+## プライバシーポリシー
+
+[PRIVACY.md](PRIVACY.md) をご覧ください。この拡張機能は利用者の情報を収集も送信もしません。
