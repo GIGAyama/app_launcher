@@ -12,10 +12,11 @@
     "measure:selftest": "node tools/measure.mjs --selftest",
     "test": "node --test tests/*.test.mjs",
     "lint": "eslint .",
-    "check": "npm run lint && npm test && npm run gate",
+    "check": "npm run lint && npm test && node tools/check-secrets.mjs && npm run gate",
     "verify": "node tools/verify-extension.mjs",
     "gate": "node scripts/check-project.mjs",
-    "gate:selftest": "node scripts/check-project.mjs --selftest"
+    "gate:selftest": "node scripts/check-project.mjs --selftest",
+    "check:secrets": "node tools/check-secrets.mjs"
   },
   "devDependencies": {
     "eslint": "^9.39.0",
