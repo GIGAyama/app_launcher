@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "unmanaged": [
+    {
+      "local": "scripts/lib/giga-v5-checks.mjs",
+      "reason": "275行のフォーク。ここは PWA ではなく Chrome 拡張（background.js / content.js / popup.html / manifest.json）で、sw.js も先読み一覧も持たない。PWA 向けの検査を当てるのは誤りなので、これはフォークではなく種類の違い。正本へ寄せる予定は無い（standards/docs/gate-forks.md、2026-08-22）"
+    }
+  ]
+}
