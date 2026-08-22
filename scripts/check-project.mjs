@@ -48,14 +48,6 @@ const listFiles = () => {
   return files;
 };
 
-// 共通の正本があれば合成する。無い環境でもゲート自体は動くようにしておく。
-const loadShared = async () => {
-  const p = path.join(ROOT, 'scripts/lib/project-quality.mjs');
-  if (!fs.existsSync(p)) return null;
-  const mod = await import(p);
-  return mod.CHECKS || null;
-};
-
 const run = (checks, files) => {
   const findings = [];
   for (const c of checks) {
@@ -116,13 +108,21 @@ const selftest = (checks, baseFiles) => {
 
 // --- 実行 -------------------------------------------------------------------
 const files = listFiles();
-const shared = await loadShared();
-const checks = [...(shared || []), ...CHECKS];
-
-if (!shared) {
-  console.log('※ scripts/lib/project-quality.mjs（全リポジトリ共通の正本）が無いため、');
-  console.log('  Part I の検査だけを実行する。正本を置けば自動で合成される。\n');
-}
+// かつてここに、共通の正本 scripts/lib/project-quality.mjs を「あれば合成、
+// 無ければ案内を出して素通り」で読む枝があった。外した理由（2026-08-22 に実測）:
+//
+//   ・案内は「正本を置けば自動で合成される」と言っていたが、そうならない。
+//     この枝は mod.CHECKS を読むが、艦隊にある8本のコピーはどれも
+//     CHECKS を export していない（6本が runQualityChecks、1本が run）。
+//     実際に置いて走らせると undefined → null になり、**例外も出さず、
+//     案内も出したまま、何も合成しない**。
+//   ・その正本には秘密の直書きを見つける検査も含まれていたので、
+//     lib/ に Google API キーと同じ形の文字列を置いても緑になっていた。
+//
+// 秘密の直書きは tools/check-secrets.mjs が見る（正本 GIGAyama.github.io の
+// standards/lib/）。あちらは丸ごと1ファイルで完結し、無ければコマンドごと
+// 失敗するので、「取り込み忘れたまま緑」にはならない。
+const checks = CHECKS;
 
 if (SELFTEST) {
   process.exit(selftest(checks, files) ? 1 : 0);
