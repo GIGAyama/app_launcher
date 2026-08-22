@@ -1,5 +1,10 @@
 {
-  "files": [],
+  "files": [
+    {
+      "canonical": "lib/check-secrets.mjs",
+      "local": "tools/check-secrets.mjs"
+    }
+  ],
   "unmanaged": [
     {
       "local": "scripts/lib/giga-v5-checks.mjs",
