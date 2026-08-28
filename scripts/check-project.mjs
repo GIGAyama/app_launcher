@@ -71,6 +71,7 @@ const BREAKAGE = {
     j.content_security_policy.extension_pages = "script-src 'self' 'unsafe-inline'; object-src 'self'; style-src 'self'; img-src 'self'";
     f['manifest.json'] = { text: JSON.stringify(j), bytes: 100, lines: 1 };
   },
+  // 検査がわざと落ちることを確かめるための資料。実物ではない giga-lint-ignore-next-line
   CDN_EXECUTABLE: (f) => { f['popup.html'] = { text: '<script src="https://unpkg.com/react"></script>', bytes: 40, lines: 1 }; },
   VIEWPORT: (f) => { f['popup.html'] = { text: '<meta name="viewport" content="width=device-width, user-scalable=no">', bytes: 60, lines: 1 }; },
   VIEWPORT_100VH: (f) => { f['popup.css'] = { text: '.a { height: 100vh; }', bytes: 20, lines: 1 }; },
